@@ -89,6 +89,7 @@ void summvect(vectC * res, vectC *a, vectC *b){
 		if (a){
 			res->x = a->x + (b ? b->x: 0);
 			res->y = a->y + (b ? b->y: 0);
+			res->c = a->c + (b ? b->c: 0);
 		} else {
 			summvect(res, b, a);
 		}
@@ -98,13 +99,22 @@ void summvect(vectC * res, vectC *a, vectC *b){
 void multvectnum(vectC * res, vectC *a, float num){
 	if (res){
 		res->x = (a? a->x: res->x) * num;
-		res->y = (a? a->y: res->y)  * num;
+		res->y = (a? a->y: res->y) * num;
+		res->c = (a? a->c: res->c) * num;
+	}
+}
+
+void sub_vect(vectC * res, vectC *a, vectC *b){
+	if (res && a && b){
+		summvect(res, b, NULL);
+		multvectnum(res, res, -1);
+		summvect(res, res, a);
 	}
 }
 
 void calcpos(vectC ** vecset, vectC * pos){
 	if (vecset && *vecset && pos){
-		pos->x = pos->y = 0;
+		pos->x = pos->y = pos->c = 0;
 		summvect(pos, pos, vecset[0]);
 		summvect(pos, pos, vecset[1]);
 		summvect(pos, pos, vecset[2]);
@@ -112,9 +122,30 @@ void calcpos(vectC ** vecset, vectC * pos){
 	multvectnum(pos, pos, 1.0/3.0);
 }
 
+void vectmult(vectC * res, vectC *a, vectC *b){
+	if (res && a && b){
+		res->x = a->y * b->c - a->c * b->y;
+		res->y = a->c * b->x - a->x * b->c;
+		res->c = a->x * b->y - a->y * b->x;
+	}
+}
+
+void calcdir(vectC ** vecset, vectC * dir){
+	if (vecset && *vecset && dir){
+		dir->x = dir->y = dir->c = 0;
+		vectC v1, v2, N;
+		sub_vect(&v1, vecset[0], vecset[1]);
+		sub_vect(&v2, vecset[0], vecset[2]);
+		vectmult(&N, &v2, &v2);
+		summvect(dir, dir, &N);
+	}
+
+}
+
 void calcOrient(vectC ** vecset, orient*orients){
 	if (vecset && *vecset && orients){
 		calcpos(vecset, &(orients->pos));
+		calcdir(vecset, &(orients->dir));
 	}
 }
 
@@ -151,7 +182,7 @@ int main(){
 	init(&RealSource, &datameasure);
 	vectC * Vect_MaxC = findVectWithMaxConcentration(&datameasure);
 	if (Vect_MaxC){
-		orient orients[CountMeasurePoints-1];
+		orient orients[CountMeasurePoints-1] = {0};
 		OrientInit(orients, &datameasure, Vect_MaxC);
 		//
 		print_Data(&RealSource, &datameasure, Vect_MaxC, orients);
