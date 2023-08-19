@@ -196,10 +196,21 @@ void calcdir(vectC ** vecset, orient *orients){
 		if (N.c > 0) multvectnum(&N, &N, -1);
 		N.c = 0;
 		//normalize(&N);
-	  //vectC Ns={0,0,1}, res={0,0,0};
+	    //vectC Ns={0,0,1}, res={0,0,0};
 		//projectVect2Surf(&res, &N, &Ns,  &(orients->pos));
 		//summvect(&(orients->dir), &(orients->dir), &res);
+		sub_vect(&v1, &(orients->pos), vecset[0]);
+		summvect(&v2, &N, NULL);
+		normalize(&v1);
+		normalize(&v2);
+		vectC temp;
+		vectmult(&temp, &v1, &v2);
+		
+		if (! IsNotZero( scalarmult(&temp, &temp)))
+		N.x = N.y =  N.c= __FLT_MIN__;
+		
 		summvect(&(orients->dir), &(orients->dir), &N);
+		
 	}
 
 }
@@ -260,7 +271,11 @@ void calcCross(vectC *res, orient*orients,vectC *Arr ){
 		unsigned k = 0;
 		for (unsigned i = 0; i < CountMeasurePoints-2; i++){
 			for (unsigned j = i+1; j < CountMeasurePoints-1; j++){
-				calcIcross(Arr+k, orients+i, orients+j);
+				//if (orients->dir.x )
+				//без упора в точку
+				//без  расходящ векторов
+				//больше треугольников
+				    calcIcross(Arr+k, orients+i, orients+j);
 				k++;
 			}
 		}
