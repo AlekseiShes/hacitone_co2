@@ -130,14 +130,37 @@ void vectmult(vectC * res, vectC *a, vectC *b){
 	}
 }
 
-void calcdir(vectC ** vecset, vectC * dir){
-	if (vecset && *vecset && dir){
-		dir->x = dir->y = dir->c = 0;
+float scalarmult(vectC *a, vectC *b){
+	float res=FLT_MIN;
+	if (a && b)
+		res = a->x*b->y + a->y*b->y + a->c*b->c;
+	return res;
+}
+
+void projectVect2Surf(vectC *res, vectC *v, vectC *Ns, vectC *Ps){
+    multvectnum(res, res, 0);
+    summvect(res,res,Ns);
+    float num = - scalarmult(Ns,Ns);
+    if (fabs(num)<1E-7) num=1/num;
+    num*=scalarmult(Ns,v);
+    multvectnum(res, res, num);
+    summvect(res,res,Ps);
+    summvect(res,res,v);
+}
+
+
+void calcdir(vectC ** vecset, orient *orients){
+	if (vecset && *vecset && orients){
+		orients->dir.x = orients->dir.y = orients->dir.c = 0;
 		vectC v1, v2, N;
 		sub_vect(&v1, vecset[0], vecset[1]);
 		sub_vect(&v2, vecset[0], vecset[2]);
-		vectmult(&N, &v2, &v2);
-		summvect(dir, dir, &N);
+		vectmult(&N, &v1, &v2);
+		if (N.c > 0) multvectnum(&N, &N, -1);
+	    vectC Ns={0,0,1};
+	    vectC res={0,0,0};
+		projectVect2Surf(&res,&N, &Ns,  &(orients->pos));
+		summvect(&(orients->dir), &(orients->dir), &res);
 	}
 
 }
@@ -145,7 +168,7 @@ void calcdir(vectC ** vecset, vectC * dir){
 void calcOrient(vectC ** vecset, orient*orients){
 	if (vecset && *vecset && orients){
 		calcpos(vecset, &(orients->pos));
-		calcdir(vecset, &(orients->dir));
+		calcdir(vecset, orients);
 	}
 }
 
