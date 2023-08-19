@@ -24,7 +24,13 @@ typedef struct Measure{
 	vectC point[CountMeasurePoints];
 } Measure;
 
-short unsigned IsNotZero(double a){ return fabs(a)<1E-16; }
+short unsigned IsNotZero(double a){ 
+	// a = fabs(a);
+	// if (a<1E-16)
+	// 	return 1;
+	// else
+		return fabs(a)>1E-16;
+}
 
 void setRandPos(vectC * v){
 	if (v){
@@ -43,18 +49,32 @@ double calcDist(vectC * v1, vectC * v2){
 double calcConcentration(vectC * src, vectC * MeasurePoint){
 	double concenration = 0;
 	if (src && MeasurePoint){
-		concenration = src->c * exp(- calcDist(src, MeasurePoint));
+		concenration = src->c * exp(- calcDist(src, MeasurePoint)/10);
 	}
 	return concenration;
 }
 
 void init(vectC * RealSource, Measure * msr){
 	if (RealSource && msr){
-		setRandPos(RealSource);
-		RealSource->x += 10;
+		// setRandPos(RealSource);
+		// RealSource->x += 10;
+		// RealSource->c = 1;
+		// for (unsigned i = 0; i < msr->count; i++){
+		// 	setRandPos(msr->point+i);
+		// 	msr->point[i].c = calcConcentration(RealSource, msr->point+i);
+		// }
+		
+		RealSource->x = 12;
+		RealSource->y = 12;
 		RealSource->c = 1;
+		int i = 0;
+		(msr->point+i)->x = 4;	(msr->point+i)->y = 8;	(msr->point+i)->c = 0;	i++;
+		(msr->point+i)->x = 3;	(msr->point+i)->y = 6;	(msr->point+i)->c = 0;	i++;
+		(msr->point+i)->x = 8;	(msr->point+i)->y = 5;	(msr->point+i)->c = 0;	i++;
+		(msr->point+i)->x = 4;	(msr->point+i)->y = 4;	(msr->point+i)->c = 0;	i++;
+		(msr->point+i)->x = 6;	(msr->point+i)->y = 3;	(msr->point+i)->c = 0;	i++;
+		(msr->point+i)->x = 1;	(msr->point+i)->y = 2;	(msr->point+i)->c = 0;	i++;
 		for (unsigned i = 0; i < msr->count; i++){
-			setRandPos(msr->point+i);
 			msr->point[i].c = calcConcentration(RealSource, msr->point+i);
 		}
 	}
@@ -75,16 +95,19 @@ void printVect(char* name, vectC * v){
 	if (v) printf("%10s\t%10.7f   %10.7f   %10.7f\n", name, v->x, v->y, v->c);
 }
 
-void print_Data(vectC * RealSource, Measure * msr, vectC * Vect_MaxC, orient *orients, vectC * Cross){
+void print_Data(vectC * RealSource, Measure * msr, vectC * Vect_MaxC, orient *orients, vectC * Cross, vectC* Arr){
 	printf("Name\t\tx\t\ty\t\tc\n");
 	printVect("Cross     ", Cross);
 	printVect("RealSource", RealSource);
 	for (unsigned i = 0; msr && i < msr->count; i++)
 		printVect("msr->point:", msr->point +i);
-	for (unsigned i = 0; msr && i < CountMeasurePoints-1; i++){
+	for (unsigned i = 0; orients && i < CountMeasurePoints-1; i++){
 		printVect("____pos", &(orients[i].pos));
 		printVect("____dir", &(orients[i].dir));
 		printf("\n");
+	}
+	for (unsigned i = 0; i < CountCross; i++){
+		printVect("Arr    ", &(Arr[i]));
 	}
 	printVect("Vect_MaxC", Vect_MaxC);
 }
@@ -167,15 +190,16 @@ void calcdir(vectC ** vecset, orient *orients){
 	if (vecset && *vecset && orients){
 		orients->dir.x = orients->dir.y = orients->dir.c = 0;
 		vectC v1, v2, N;
-		sub_vect(&v1, vecset[0], vecset[1]);
-		sub_vect(&v2, vecset[0], vecset[2]);
+		sub_vect(&v1, vecset[1], vecset[0]);
+		sub_vect(&v2, vecset[2], vecset[0]);
 		vectmult(&N, &v1, &v2);
 		if (N.c > 0) multvectnum(&N, &N, -1);
-		//N.c = 0;
+		N.c = 0;
 		//normalize(&N);
-	  vectC Ns={0,0,1}, res={0,0,0};
-		projectVect2Surf(&res, &N, &Ns,  &(orients->pos));
-		summvect(&(orients->dir), &(orients->dir), &res);
+	  //vectC Ns={0,0,1}, res={0,0,0};
+		//projectVect2Surf(&res, &N, &Ns,  &(orients->pos));
+		//summvect(&(orients->dir), &(orients->dir), &res);
+		summvect(&(orients->dir), &(orients->dir), &N);
 	}
 
 }
@@ -231,13 +255,13 @@ void calcIcross(vectC * cross, orient * a, orient * b){
 	}
 }
 
-void calcCross(vectC *res, orient*orients){
-	if (res && orients){
-		vectC Arr[CountCross];
+void calcCross(vectC *res, orient*orients,vectC *Arr ){
+	if (res && orients && Arr){
 		unsigned k = 0;
 		for (unsigned i = 0; i < CountMeasurePoints-2; i++){
 			for (unsigned j = i+1; j < CountMeasurePoints-1; j++){
 				calcIcross(Arr+k, orients+i, orients+j);
+				k++;
 			}
 		}
 		multvectnum(res, res, 0);
@@ -245,6 +269,25 @@ void calcCross(vectC *res, orient*orients){
 			summvect(res, res, Arr+i);
 		multvectnum(res, res, 1.0/CountCross);
 	}
+}
+
+void debug(vectC *res){
+	vectC Arr[1];
+	orient orient[2];
+	//double a = sqrt(2)/2;
+	orient->dir.x = 3;
+	orient->dir.y = 5;
+	orient->dir.c = 0;
+	orient->pos.x = -1;
+	orient->pos.y = 0;
+	orient->pos.c = 0;
+	(orient+1)->dir.x = -3;
+	(orient+1)->dir.y = 5;
+	(orient+1)->dir.c = 0;
+	(orient+1)->pos.x = 1;
+	(orient+1)->pos.y = 0;
+	(orient+1)->pos.c = 0;
+	calcIcross(Arr, orient, orient+1);
 }
 
 int main(){
@@ -259,8 +302,10 @@ int main(){
 		OrientInit(orients, &datameasure, Vect_MaxC);
 		SetCAsZero(orients);
 		vectC Cross= {0,0,0};
-		calcCross(&Cross, orients);
-		print_Data(&RealSource, &datameasure, Vect_MaxC, orients, &Cross);
+		vectC Arr[CountCross];
+		calcCross(&Cross, orients, Arr);
+		print_Data(&RealSource, &datameasure, Vect_MaxC, orients, &Cross, Arr);
+		//debug(&Cross);
 	}
 	return 0;
 }
