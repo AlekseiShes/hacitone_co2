@@ -24,13 +24,7 @@ typedef struct Measure{
 	vectC point[CountMeasurePoints];
 } Measure;
 
-short unsigned IsNotZero(double a){ 
-	// a = fabs(a);
-	// if (a<1E-16)
-	// 	return 1;
-	// else
-		return fabs(a)>1E-16;
-}
+short unsigned IsNotZero(double a){ return fabs(a)>1E-16; }
 
 void setRandPos(vectC * v){
 	if (v){
@@ -40,7 +34,7 @@ void setRandPos(vectC * v){
 }
 
 double calcDist(vectC * v1, vectC * v2){
-	double dist = __FLT_MIN__;
+	double dist = __FLT_MAX__;
 	if (v1 && v2)
 		dist = sqrt(pow((v1->x-v2->x),2)+pow((v1->y-v2->y),2));
 	return dist;
@@ -64,7 +58,7 @@ void init(vectC * RealSource, Measure * msr){
 		// 	msr->point[i].c = calcConcentration(RealSource, msr->point+i);
 		// }
 		
-		RealSource->x = 12;
+		RealSource->x = -5;
 		RealSource->y = 12;
 		RealSource->c = 1;
 		int i = 0;
@@ -159,7 +153,7 @@ void vectmult(vectC * res, vectC *a, vectC *b){
 }
 
 double scalarmult(vectC *a, vectC *b){
-	double res=__FLT_MIN__;
+	double res=__FLT_MAX__;
 	if (a && b)
 		res = a->x *b->x + a->y*b->y + a->c*b->c;
 	return res;
@@ -199,15 +193,21 @@ void calcdir(vectC ** vecset, orient *orients){
 	    //vectC Ns={0,0,1}, res={0,0,0};
 		//projectVect2Surf(&res, &N, &Ns,  &(orients->pos));
 		//summvect(&(orients->dir), &(orients->dir), &res);
-		sub_vect(&v1, &(orients->pos), vecset[0]);
-		summvect(&v2, &N, NULL);
-		normalize(&v1);
-		normalize(&v2);
-		vectC temp;
-		vectmult(&temp, &v1, &v2);
-		
-		if (! IsNotZero( scalarmult(&temp, &temp)))
-		N.x = N.y =  N.c= __FLT_MIN__;
+
+
+		// vectC real = {12, 12, 0};
+		// vectC temppos ={0,0,0};
+		// summvect(&temppos, &(orients->pos), NULL);
+		// temppos.c = 0;
+		// sub_vect(&v1, &temppos, &real);
+		// summvect(&v2, &N, NULL);
+		// normalize(&v1);
+		// normalize(&v2);
+		// vectC temp;
+		// vectmult(&temp, &v1, &v2);
+		// temp.c = 0;
+		// if (! IsNotZero( scalarmult(&temp, &temp)))
+		// 	N.x = N.y =  N.c= __FLT_MAX__;
 		
 		summvect(&(orients->dir), &(orients->dir), &N);
 		
@@ -254,7 +254,7 @@ void SetCAsZero(orient*orients){
 
 void calcIcross(vectC * cross, orient * a, orient * b){
 	if (cross && a && b){
-		cross->x = cross->y = __FLT_MIN__; cross->c = 0;
+		cross->x = cross->y = __FLT_MAX__; cross->c = 0;
 		if (IsNotZero(a->dir.x) && IsNotZero(b->dir.x)){
 			double ka = a->dir.y/a->dir.x,
 						kb = b->dir.y/b->dir.x;
@@ -263,6 +263,12 @@ void calcIcross(vectC * cross, orient * a, orient * b){
 				cross->y = ka * (cross->x - a->pos.x) + a->pos.y;
 			}
 		}
+		vectC v1, v2, N;
+		sub_vect(&v1, &(a->pos), cross);
+		sub_vect(&v2, &(a->dir), NULL);
+		double num = scalarmult(&v1, &v2);
+		if (num < 0)
+			cross->x = cross->y = cross->c = __FLT_MAX__;
 	}
 }
 
@@ -280,9 +286,15 @@ void calcCross(vectC *res, orient*orients,vectC *Arr ){
 			}
 		}
 		multvectnum(res, res, 0);
-		for (unsigned i = 0; i < CountCross; i++)
-			summvect(res, res, Arr+i);
-		multvectnum(res, res, 1.0/CountCross);
+		int cnt = 0;
+		for (unsigned i = 0; i < CountCross; i++){
+			if ((Arr+i)->c < __FLT_MAX__-1){
+				summvect(res, res, Arr+i);
+				cnt++;
+			}
+		}
+		if (cnt>0)
+			multvectnum(res, res, 1.0/(cnt+0.0));
 	}
 }
 
@@ -305,6 +317,19 @@ void debug(vectC *res){
 	calcIcross(Arr, orient, orient+1);
 }
 
+void checkOrients(orient*orients, vectC * RealSource){
+	for (unsigned i = 0; i < CountMeasurePoints-1; i++) {
+		vectC v1, v2, N;
+		sub_vect(&v1, &(orients[1].pos), RealSource);
+		sub_vect(&v2, &(orients[1].dir), NULL);
+		vectmult(&N, &v1, &v2);
+		double num = scalarmult(&N, &N);
+		if (fabs(num)<1E-7){
+			printf("Is___Zero( scalarmult(&N, &N)) for i = %u, num =%.15lf\n", i, num);
+		}
+	}
+}
+
 int main(){
 	srand(time (NULL));
 	vectC RealSource;
@@ -316,6 +341,7 @@ int main(){
 		orient orients[CountMeasurePoints-1] = {0};
 		OrientInit(orients, &datameasure, Vect_MaxC);
 		SetCAsZero(orients);
+		//checkOrients(orients, &RealSource);
 		vectC Cross= {0,0,0};
 		vectC Arr[CountCross];
 		calcCross(&Cross, orients, Arr);
