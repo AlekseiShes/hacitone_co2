@@ -6,7 +6,8 @@
 
 #define FIELDSIZE 10
 #define CountMeasurePoints 6
-#define CountCross 10
+#define CountOrient 10
+#define CountCross 45
 
 typedef struct vectC{
 	double x;
@@ -58,8 +59,8 @@ void init(vectC * RealSource, Measure * msr){
 		// 	msr->point[i].c = calcConcentration(RealSource, msr->point+i);
 		// }
 		
-		RealSource->x = -5;
-		RealSource->y = 12;
+		RealSource->x = 20;
+		RealSource->y = 20;
 		RealSource->c = 1;
 		int i = 0;
 		(msr->point+i)->x = 4;	(msr->point+i)->y = 8;	(msr->point+i)->c = 0;	i++;
@@ -91,11 +92,10 @@ void printVect(char* name, vectC * v){
 
 void print_Data(vectC * RealSource, Measure * msr, vectC * Vect_MaxC, orient *orients, vectC * Cross, vectC* Arr){
 	printf("Name\t\tx\t\ty\t\tc\n");
-	printVect("Cross     ", Cross);
-	printVect("RealSource", RealSource);
+
 	for (unsigned i = 0; msr && i < msr->count; i++)
 		printVect("msr->point:", msr->point +i);
-	for (unsigned i = 0; orients && i < CountMeasurePoints-1; i++){
+	for (unsigned i = 0; orients && i < CountOrient; i++){
 		printVect("____pos", &(orients[i].pos));
 		printVect("____dir", &(orients[i].dir));
 		printf("\n");
@@ -104,6 +104,8 @@ void print_Data(vectC * RealSource, Measure * msr, vectC * Vect_MaxC, orient *or
 		printVect("Arr    ", &(Arr[i]));
 	}
 	printVect("Vect_MaxC", Vect_MaxC);
+	printVect("Cross     ", Cross);
+	printVect("RealSource", RealSource);
 }
 
 void summvect(vectC * res, vectC *a, vectC *b){
@@ -239,7 +241,7 @@ void OrientInit(orient*orients, Measure * msr, vectC * Vect_MaxC){
 				else if(msr->count>1) vecset[2] = msr->point+1;
 				else needcalc = 0;
 				if(needcalc){
-					if (io < CountMeasurePoints-1) calcOrient(vecset, orients+io);
+					if (io < CountOrient) calcOrient(vecset, orients+io);
 					io++;
 				}
 			}
@@ -247,8 +249,31 @@ void OrientInit(orient*orients, Measure * msr, vectC * Vect_MaxC){
 	}
 }
 
+void OrientInit_2(orient*orients, Measure * msr, vectC * Vect_MaxC){
+	if (orients && msr && Vect_MaxC){
+		vectC * vecset[3] = {Vect_MaxC, NULL, NULL};
+		int io = 0;
+		for (unsigned i = 0; i < msr->count; i++){
+			int needcalc = 1;
+			if (msr->point+i != Vect_MaxC){
+				vecset[1] = msr->point+i;
+				for (unsigned j = i+1; j < msr->count; j++){
+					if (msr->point+j != Vect_MaxC){
+						vecset[2] = msr->point+j;
+						if(needcalc){
+							if (io < CountOrient)
+								calcOrient(vecset, orients+io);
+							io++;
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 void SetCAsZero(orient*orients){
-	for (unsigned i = 0; orients && i < CountMeasurePoints-1; i++)
+	for (unsigned i = 0; orients && i < CountOrient; i++)
 		orients->dir.c = orients->pos.c = 0;
 }
 
@@ -275,8 +300,8 @@ void calcIcross(vectC * cross, orient * a, orient * b){
 void calcCross(vectC *res, orient*orients,vectC *Arr ){
 	if (res && orients && Arr){
 		unsigned k = 0;
-		for (unsigned i = 0; i < CountMeasurePoints-2; i++){
-			for (unsigned j = i+1; j < CountMeasurePoints-1; j++){
+		for (unsigned i = 0; i < CountOrient; i++){
+			for (unsigned j = i+1; j < CountOrient; j++){
 				//if (orients->dir.x )
 				//без упора в точку
 				//без  расходящ векторов
@@ -318,7 +343,7 @@ void debug(vectC *res){
 }
 
 void checkOrients(orient*orients, vectC * RealSource){
-	for (unsigned i = 0; i < CountMeasurePoints-1; i++) {
+	for (unsigned i = 0; i < CountOrient; i++) {
 		vectC v1, v2, N;
 		sub_vect(&v1, &(orients[1].pos), RealSource);
 		sub_vect(&v2, &(orients[1].dir), NULL);
@@ -338,8 +363,9 @@ int main(){
 	init(&RealSource, &datameasure);
 	vectC * Vect_MaxC = findVectWithMaxConcentration(&datameasure);
 	if (Vect_MaxC){
-		orient orients[CountMeasurePoints-1] = {0};
-		OrientInit(orients, &datameasure, Vect_MaxC);
+		orient orients[CountOrient] = {0};
+		//OrientInit(orients, &datameasure, Vect_MaxC);
+		OrientInit_2(orients, &datameasure, Vect_MaxC);
 		SetCAsZero(orients);
 		//checkOrients(orients, &RealSource);
 		vectC Cross= {0,0,0};
